@@ -11,16 +11,16 @@
   },
   "sqs": {
     "example": {
-      "url": "https://sqs.ap-southeast-1.amazonaws.com/891131445954/meliodas_queue",
-      "region": "ap-southeast-1"
+      "url": "",
+      "region": ""
     }
   },
   "redis": {
-    "url": "redis://127.0.0.1:6479"
+    "url": ""
   },
   "jwt": {
     "secret": "",
-    "expiresIn": "30d"
+    "expiresIn": ""
   },
   "rmq": {
     "url": ""
@@ -28,6 +28,6 @@
   "aws": {
     "accessKeyId": "",
     "secretAccessKey": "",
-    "region": "ap-southeast-1"
+    "region": ""
   }
 }
