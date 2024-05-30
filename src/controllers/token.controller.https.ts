@@ -1,14 +1,11 @@
-import { Body, Controller, Delete, Post, Put } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 import { BaseResponse } from 'src/base/base-response';
 import {
-  DeployTokenDto,
-  AllowanceTokensDto,
-  BalanceOfTokensDto,
+  CreateTokenDto,
   MintTokensDto,
   TransferTokensDto,
   TransferFromTokensDto,
-  ApproveTokensDto,
   BurnTokensDto,
 } from './token.dtos';
 
@@ -17,104 +14,59 @@ export class TokenController {
   constructor(private readonly tokenService: TokenService) {}
 
   @Post('deploy')
-  async deployToken(
-    @Body() deployTokenDto: DeployTokenDto,
-  ): Promise<BaseResponse> {
-    const token = await this.tokenService.deployToken(deployTokenDto);
+  async deployToken(@Body() dto: CreateTokenDto): Promise<BaseResponse> {
+    const tx = await this.tokenService.createToken(dto);
 
     return {
       success: true,
       message: 'Token deployed successfully',
-      data: token,
+      data: tx,
     };
   }
-
-  @Post('allowance')
-  async allowance(
-    @Body() allowanceTokensDto: AllowanceTokensDto,
-  ): Promise<BaseResponse> {
-    const allowance = await this.tokenService.allowanceTokens(allowanceTokensDto);
-
-    return {
-      success: true,
-      message: 'Tokens allowance checked successfully',
-      data: allowance,
-    };
-  }
-
-  @Post('balanceOf')
-  async balanceOf(
-    @Body() balanceOfTokensDto: BalanceOfTokensDto,
-  ): Promise<BaseResponse> {
-    const balanceOf = await this.tokenService.balanceOfTokens(balanceOfTokensDto);
-
-    return {
-      success: true,
-      message: 'Tokens balance checked successfully',
-      data: balanceOf,
-    };
-  }
-
-  @Put('mint')
-  async mint(@Body() mintTokensDto: MintTokensDto): Promise<BaseResponse> {
-    const mint = await this.tokenService.mintTokens(mintTokensDto);
+  
+  @Post('mint')
+  async mint(@Body() dto: MintTokensDto): Promise<BaseResponse> {
+    const tx = await this.tokenService.mintTokens(dto);
 
     return {
       success: true,
       message: 'Tokens minted successfully',
-      data: mint,
+      data: tx,
     };
   }
 
-  @Put('transfer')
-  async transfer(
-    @Body() transferTokensDto: TransferTokensDto,
-  ): Promise<BaseResponse> {
-    const transfer = await this.tokenService.transferTokens(transferTokensDto);
+  @Post('transfer')
+  async transfer(@Body() dto: TransferTokensDto): Promise<BaseResponse> {
+    const tx = await this.tokenService.transferTokens(dto);
 
     return {
       success: true,
       message: 'Tokens transferred successfully',
-      data: transfer,
+      data: tx,
     };
   }
 
-  @Put('transferFrom')
+  @Post('transferFrom')
   async transferFrom(
-    @Body() transferFromTokenDto: TransferFromTokensDto,
+    @Body() dto: TransferFromTokensDto,
   ): Promise<BaseResponse> {
-    const transferFrom = await this.tokenService.transferFromTokens(
-      transferFromTokenDto,
-    );
+    const tx = await this.tokenService.transferFromTokens(dto);
 
     return {
       success: true,
       message: 'Tokens transferred successfully',
-      data: transferFrom,
+      data: tx,
     };
   }
 
-  @Put('approve')
-  async approve(
-    @Body() approveTokensDto: ApproveTokensDto,
-  ): Promise<BaseResponse> {
-    const approval = await this.tokenService.approveTokens(approveTokensDto);
-
-    return {
-      success: true,
-      message: 'Tokens approved successfully',
-      data: approval,
-    };
-  }
-
-  @Delete('burn')
-  async burn(@Body() burnTokensDto: BurnTokensDto): Promise<BaseResponse> {
-    const burn = await this.tokenService.burnTokens(burnTokensDto);
+  @Post('burn')
+  async burn(@Body() dto: BurnTokensDto): Promise<BaseResponse> {
+    const tx = await this.tokenService.burnTokens(dto);
 
     return {
       success: true,
       message: 'Tokens burned successfully',
-      data: burn,
+      data: tx,
     };
   }
 }

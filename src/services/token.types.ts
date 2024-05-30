@@ -4,5 +4,4 @@ export enum EventType {
   BURN = 'BURN',
   TRANSFER = 'TRANSFER',
   TRANSFERFROM = 'TRANSFER_FROM',
-  APPROVAL = 'APPROVAL',
 }

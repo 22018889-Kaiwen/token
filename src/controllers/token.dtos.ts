@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
 
-export class DeployTokenDto {
+export class CreateTokenDto {
   @IsString()
   @IsNotEmpty()
   @ApiProperty()
@@ -23,34 +23,6 @@ export class DeployTokenDto {
   readonly initialSupply: number;
 }
 
-export class AllowanceTokensDto {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokenAddress: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly owner: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly spender: string;
-}
-
-export class BalanceOfTokensDto {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokenAddress: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly owner: string;
-}
 export class MintTokensDto {
   @IsString()
   @IsNotEmpty()
@@ -65,7 +37,18 @@ export class MintTokensDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty()
-  readonly tokens: number;
+  readonly amount: number;
+}
+export class BurnTokensDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly tokenAddress: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly amount: number;
 }
 
 export class TransferTokensDto {
@@ -82,7 +65,7 @@ export class TransferTokensDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty()
-  readonly tokens: number;
+  readonly amount: number;
 }
 
 export class TransferFromTokensDto {
@@ -104,39 +87,5 @@ export class TransferFromTokensDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty()
-  readonly tokens: number;
-}
-
-export class ApproveTokensDto {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokenAddress: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly spender: string;
-
-  @IsNumber()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokens: number;
-}
-
-export class BurnTokensDto {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokenAddress: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly from: string;
-
-  @IsNumber()
-  @IsNotEmpty()
-  @ApiProperty()
-  readonly tokens: number;
+  readonly amount: number;
 }
