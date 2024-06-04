@@ -1,18 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Web3 from 'web3';
-import { HttpProvider } from 'web3-providers-http';
-import * as FactoryABI from 'src/Factory.json';
+import * as TokenFactoryABI from 'src/TokenFactory.json';
 import { TOKEN_REPOSITORY, TokenModel } from './token.model';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+const HDWalletProvider = require('@truffle/hdwallet-provider');
+
 export enum EventType {
   DEPLOYTOKEN = 'DEPLOY_TOKEN',
-  MINT = 'MINT',
-  BURN = 'BURN',
-  TRANSFER = 'TRANSFER',
-  TRANSFERFROM = 'TRANSFER_FROM',
-  APPROVAL = 'APPROVAL',
 }
 
 @Injectable()
@@ -26,12 +22,28 @@ export class TokenService {
     private tokenRepository: typeof TokenModel,
   ) {
     const infuraUrl = `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`;
-    this.web3 = new Web3(new HttpProvider(infuraUrl));
+    const privateKey = process.env.DEV_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error('PRIVATE_KEY is required');
+    }
+    this.privateKey = privateKey;
+
+    const provider = new HDWalletProvider({
+      privateKeys: [this.privateKey],
+      providerOrUrl: infuraUrl,
+    });
+
+    this.web3 = new Web3(provider);
     this.factoryContractAddress = process.env.FACTORY_CONTRACT_ADDRESS;
-    this.privateKey = process.env.PRIVATE_KEY;
+
+    if (!this.factoryContractAddress) {
+      throw new Error(
+        'Factory contract address is not defined in the environment variables.',
+      );
+    }
   }
 
-  async deployToken(dto: {
+  async createToken(dto: {
     name: string;
     symbol: string;
     decimals: number;
@@ -39,14 +51,15 @@ export class TokenService {
   }) {
     const { name, symbol, decimals, initialSupply } = dto;
 
-    const ownerAddress = process.env.OWNER_ADDRESS;
+    const accounts = await this.web3.eth.getAccounts();
+    const ownerAddress = accounts[0];
 
     const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
+      TokenFactoryABI.abi,
       this.factoryContractAddress,
     );
 
-    const deployTx = factoryContract.methods.deployToken(
+    const deployTx = factoryContract.methods.createToken(
       name,
       symbol,
       decimals,
@@ -54,7 +67,6 @@ export class TokenService {
     );
 
     const gasPrice = await this.web3.eth.getGasPrice();
-
     const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
 
     const txObject = {
@@ -74,275 +86,42 @@ export class TokenService {
       signedTx.rawTransaction,
     );
 
+    const formattedReceipt = this.formatReceipt(receipt);
+
+    const serializedReceipt = {
+      ...formattedReceipt,
+      gasUsed: formattedReceipt.gasUsed.toString(),
+      cumulativeGasUsed: formattedReceipt.cumulativeGasUsed.toString(),
+      blockNumber: formattedReceipt.blockNumber.toString(),
+    };
+
     const token = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
+      transactionHash: formattedReceipt.transactionHash,
       type: EventType.DEPLOYTOKEN,
+      from: formattedReceipt.from,
+      to: formattedReceipt.to,
+      contractAddress: formattedReceipt.contractAddress,
+    });
+
+    if (!token) {
+      throw new Error('Failed to create token record in the database.');
+    }
+
+    return serializedReceipt;
+  }
+
+  formatReceipt(receipt: any) {
+    return {
+      transactionHash: receipt.transactionHash,
+      blockHash: receipt.blockHash,
+      blockNumber: receipt.blockNumber,
+      contractAddress: receipt.contractAddress,
+      gasUsed: receipt.gasUsed,
+      cumulativeGasUsed: receipt.cumulativeGasUsed,
       from: receipt.from,
       to: receipt.to,
-    });
-    return token.transactionHash;
-  }
-
-  async allowanceTokens(dto: {
-    tokenAddress: string;
-    owner: string;
-    spender: string;
-  }) {
-    const { tokenAddress, owner, spender } = dto;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const allowance = await factoryContract.methods
-      .allowanceToken(owner, spender)
-      .call();
-
-    return allowance;
-  }
-
-  async balanceOfTokens(dto: { tokenAddress: string; owner: string }) {
-    const { tokenAddress, owner } = dto;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const balance = await factoryContract.methods.balanceOfToken(owner).call();
-
-    return balance;
-  }
-
-  async mintTokens(dto: { tokenAddress: string; to: string; tokens: number }) {
-    const { tokenAddress, to, tokens } = dto;
-
-    const ownerAddress = process.env.OWNER_ADDRESS;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const mintTx = factoryContract.methods.mintToken(to, tokens);
-
-    const gasPrice = await this.web3.eth.getGasPrice();
-
-    const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-    const txObject = {
-      from: ownerAddress,
-      to: tokenAddress,
-      data: mintTx.encodeABI(),
-      gasPrice,
-      nonce,
+      status: receipt.status,
+      events: receipt.events,
     };
-
-    const signedTx = await this.web3.eth.accounts.signTransaction(
-      txObject,
-      this.privateKey,
-    );
-
-    const receipt = await this.web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction,
-    );
-
-    const mint = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
-      type: EventType.MINT,
-      from: receipt.from,
-      to: receipt.to,
-    });
-    return mint.transactionHash;
-  }
-
-  async transferTokens(dto: {
-    tokenAddress: string;
-    to: string;
-    tokens: number;
-  }) {
-    const { tokenAddress, to, tokens } = dto;
-
-    const ownerAddress = process.env.OWNER_ADDRESS;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const transferTx = factoryContract.methods.transferToken(to, tokens);
-
-    const gasPrice = await this.web3.eth.getGasPrice();
-
-    const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-    const txObject = {
-      from: ownerAddress,
-      to: tokenAddress,
-      data: transferTx.encodeABI(),
-      gasPrice,
-      nonce,
-    };
-
-    const signedTx = await this.web3.eth.accounts.signTransaction(
-      txObject,
-      this.privateKey,
-    );
-
-    const receipt = await this.web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction,
-    );
-
-    const transfer = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
-      type: EventType.TRANSFER,
-      from: receipt.from,
-      to: receipt.to,
-    });
-    return transfer.transactionHash;
-  }
-
-  async transferFromTokens(dto: {
-    tokenAddress: string;
-    from: string;
-    to: string;
-    tokens: number;
-  }) {
-    const { tokenAddress, from, to, tokens } = dto;
-
-    const ownerAddress = process.env.OWNER_ADDRESS;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const transferFromTx = factoryContract.methods.transferTokenFrom(
-      from,
-      to,
-      tokens,
-    );
-
-    const gasPrice = await this.web3.eth.getGasPrice();
-
-    const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-    const txObject = {
-      from: ownerAddress,
-      to: tokenAddress,
-      data: transferFromTx.encodeABI(),
-      gasPrice,
-      nonce,
-    };
-
-    const signedTx = await this.web3.eth.accounts.signTransaction(
-      txObject,
-      this.privateKey,
-    );
-
-    const receipt = await this.web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction,
-    );
-
-    const transferFrom = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
-      type: EventType.TRANSFERFROM,
-      from: receipt.from,
-      to: receipt.to,
-    });
-    return transferFrom.transactionHash;
-  }
-
-  async approveTokens(dto: {
-    tokenAddress: string;
-    spender: string;
-    tokens: number;
-  }) {
-    const { tokenAddress, spender, tokens } = dto;
-
-    const ownerAddress = process.env.OWNER_ADDRESS;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const approveTx = factoryContract.methods.approveToken(spender, tokens);
-
-    const gasPrice = await this.web3.eth.getGasPrice();
-
-    const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-    const txObject = {
-      from: ownerAddress,
-      to: tokenAddress,
-      data: approveTx.encodeABI(),
-      gasPrice,
-      nonce,
-    };
-
-    const signedTx = await this.web3.eth.accounts.signTransaction(
-      txObject,
-      this.privateKey,
-    );
-
-    const receipt = await this.web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction,
-    );
-
-    const approve = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
-      type: EventType.APPROVAL,
-      from: receipt.from,
-      to: receipt.to,
-    });
-    return approve.transactionHash;
-  }
-
-  async burnTokens(dto: {
-    tokenAddress: string;
-    from: string;
-    tokens: number;
-  }) {
-    const { tokenAddress, from, tokens } = dto;
-
-    const ownerAddress = process.env.OWNER_ADDRESS;
-
-    const factoryContract = new this.web3.eth.Contract(
-      FactoryABI.abi,
-      tokenAddress,
-    );
-
-    const burnTx = factoryContract.methods.burn(from, tokens);
-
-    const gasPrice = await this.web3.eth.getGasPrice();
-
-    const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-    const txObject = {
-      from: ownerAddress,
-      to: tokenAddress,
-      data: burnTx.encodeABI(),
-      gasPrice,
-      nonce,
-    };
-
-    const signedTx = await this.web3.eth.accounts.signTransaction(
-      txObject,
-      this.privateKey,
-    );
-
-    const receipt = await this.web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction,
-    );
-
-    const burn = await this.tokenRepository.create({
-      transactionHash: receipt.transactionHash.toString(),
-      type: EventType.BURN,
-      from: receipt.from,
-      to: receipt.to,
-    });
-    return burn.transactionHash;
   }
 }
