@@ -9,10 +9,6 @@ const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 export enum EventType {
   DEPLOYTOKEN = 'DEPLOY_TOKEN',
-  // MINT = 'MINT',
-  // BURN = 'BURN',
-  // TRANSFER = 'TRANSFER',
-  // TRANSFERFROM = 'TRANSFER_FROM',
 }
 
 @Injectable()
@@ -92,6 +88,13 @@ export class TokenService {
 
     const formattedReceipt = this.formatReceipt(receipt);
 
+    const serializedReceipt = {
+      ...formattedReceipt,
+      gasUsed: formattedReceipt.gasUsed.toString(),
+      cumulativeGasUsed: formattedReceipt.cumulativeGasUsed.toString(),
+      blockNumber: formattedReceipt.blockNumber.toString(),
+    };
+
     const token = await this.tokenRepository.create({
       transactionHash: formattedReceipt.transactionHash,
       type: EventType.DEPLOYTOKEN,
@@ -104,187 +107,8 @@ export class TokenService {
       throw new Error('Failed to create token record in the database.');
     }
 
-    return formattedReceipt;
+    return serializedReceipt;
   }
-
-  // async mintTokens(dto: { tokenAddress: string; to: string; amount: number }) {
-  //   const { tokenAddress, to, amount } = dto;
-  //   const accounts = await this.web3.eth.getAccounts();
-  //   const ownerAddress = accounts[0];
-
-  //   const tokenContract = new this.web3.eth.Contract(
-  //     TokenABI.abi,
-  //     tokenAddress,
-  //   );
-  //   const mintTx = tokenContract.methods.mint(to, amount);
-
-  //   const gasPrice = await this.web3.eth.getGasPrice();
-  //   const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-  //   const txObject = {
-  //     from: ownerAddress,
-  //     to: tokenAddress,
-  //     data: mintTx.encodeABI(),
-  //     gasPrice,
-  //     nonce,
-  //   };
-
-  //   const signedTx = await this.web3.eth.accounts.signTransaction(
-  //     txObject,
-  //     this.privateKey,
-  //   );
-
-  //   const receipt = await this.web3.eth.sendSignedTransaction(
-  //     signedTx.rawTransaction,
-  //   );
-
-  //   const mint = await this.tokenRepository.create({
-  //     transactionHash: receipt.transactionHash.toString(),
-  //     type: EventType.MINT,
-  //     from: receipt.from,
-  //     to: receipt.to,
-  //   });
-
-  //   return mint.transactionHash;
-  // }
-
-  // async burnTokens(dto: { tokenAddress: string; amount: number }) {
-  //   const { tokenAddress, amount } = dto;
-
-  //   const accounts = await this.web3.eth.getAccounts();
-  //   const ownerAddress = accounts[0];
-
-  //   const tokenContract = new this.web3.eth.Contract(
-  //     TokenABI.abi,
-  //     tokenAddress,
-  //   );
-
-  //   const burnTx = tokenContract.methods.burn(amount);
-
-  //   const gasPrice = await this.web3.eth.getGasPrice();
-
-  //   const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-  //   const txObject = {
-  //     from: ownerAddress,
-  //     to: tokenAddress,
-  //     data: burnTx.encodeABI(),
-  //     gasPrice,
-  //     nonce,
-  //   };
-
-  //   const signedTx = await this.web3.eth.accounts.signTransaction(
-  //     txObject,
-  //     this.privateKey,
-  //   );
-
-  //   const receipt = await this.web3.eth.sendSignedTransaction(
-  //     signedTx.rawTransaction,
-  //   );
-
-  //   const burn = await this.tokenRepository.create({
-  //     transactionHash: receipt.transactionHash.toString(),
-  //     type: EventType.BURN,
-  //     from: receipt.from,
-  //     to: receipt.to,
-  //   });
-  //   return burn.transactionHash;
-  // }
-
-  // async transferTokens(dto: {
-  //   tokenAddress: string;
-  //   to: string;
-  //   amount: number;
-  // }) {
-  //   const { tokenAddress, to, amount } = dto;
-
-  //   const accounts = await this.web3.eth.getAccounts();
-  //   const ownerAddress = accounts[0];
-
-  //   const tokenContract = new this.web3.eth.Contract(
-  //     TokenABI.abi,
-  //     tokenAddress,
-  //   );
-
-  //   const transferTx = tokenContract.methods.transfer(to, amount);
-
-  //   const gasPrice = await this.web3.eth.getGasPrice();
-
-  //   const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-  //   const txObject = {
-  //     from: ownerAddress,
-  //     to: tokenAddress,
-  //     data: transferTx.encodeABI(),
-  //     gasPrice,
-  //     nonce,
-  //   };
-
-  //   const signedTx = await this.web3.eth.accounts.signTransaction(
-  //     txObject,
-  //     this.privateKey,
-  //   );
-
-  //   const receipt = await this.web3.eth.sendSignedTransaction(
-  //     signedTx.rawTransaction,
-  //   );
-
-  //   const transfer = await this.tokenRepository.create({
-  //     transactionHash: receipt.transactionHash.toString(),
-  //     type: EventType.TRANSFER,
-  //     from: receipt.from,
-  //     to: receipt.to,
-  //   });
-  //   return transfer.transactionHash;
-  // }
-
-  // async transferFromTokens(dto: {
-  //   tokenAddress: string;
-  //   from: string;
-  //   to: string;
-  //   amount: number;
-  // }) {
-  //   const { tokenAddress, from, to, amount } = dto;
-
-  //   const accounts = await this.web3.eth.getAccounts();
-  //   const ownerAddress = accounts[0];
-
-  //   const tokenContract = new this.web3.eth.Contract(
-  //     TokenABI.abi,
-  //     tokenAddress,
-  //   );
-
-  //   const transferFromTx = tokenContract.methods.transferFrom(from, to, amount);
-
-  //   const gasPrice = await this.web3.eth.getGasPrice();
-
-  //   const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
-
-  //   const txObject = {
-  //     from: ownerAddress,
-  //     to: tokenAddress,
-  //     data: transferFromTx.encodeABI(),
-  //     gasPrice,
-  //     nonce,
-  //   };
-
-  //   const signedTx = await this.web3.eth.accounts.signTransaction(
-  //     txObject,
-  //     this.privateKey,
-  //   );
-
-  //   const receipt = await this.web3.eth.sendSignedTransaction(
-  //     signedTx.rawTransaction,
-  //   );
-
-  //   const transferFrom = await this.tokenRepository.create({
-  //     transactionHash: receipt.transactionHash.toString(),
-  //     type: EventType.TRANSFERFROM,
-  //     from: receipt.from,
-  //     to: receipt.to,
-  //   });
-  //   return transferFrom.transactionHash;
-  // }
 
   formatReceipt(receipt: any) {
     return {
