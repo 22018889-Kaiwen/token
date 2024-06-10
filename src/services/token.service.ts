@@ -3,37 +3,29 @@ import Web3 from 'web3';
 import * as TokenFactoryABI from 'src/TokenFactory.json';
 import { TOKEN_REPOSITORY, TokenModel } from './token.model';
 import * as dotenv from 'dotenv';
+import { FireblocksSDK } from 'fireblocks-sdk';
+import * as fs from 'fs';
+
 dotenv.config();
-
-const HDWalletProvider = require('@truffle/hdwallet-provider');
-
-export enum EventType {
-  DEPLOYTOKEN = 'DEPLOY_TOKEN',
-}
 
 @Injectable()
 export class TokenService {
   private web3: Web3;
   private factoryContractAddress: string;
   private privateKey: string;
+  private fireblocks: FireblocksSDK;
 
   constructor(
     @Inject(TOKEN_REPOSITORY)
     private tokenRepository: typeof TokenModel,
   ) {
     const infuraUrl = `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`;
-    const privateKey = process.env.DEV_PRIVATE_KEY;
-    if (!privateKey) {
-      throw new Error('PRIVATE_KEY is required');
+    this.privateKey = process.env.DEV_PRIVATE_KEY;
+    if (!this.privateKey.startsWith('0x')) {
+      this.privateKey = `0x${this.privateKey}`;
     }
-    this.privateKey = privateKey;
 
-    const provider = new HDWalletProvider({
-      privateKeys: [this.privateKey],
-      providerOrUrl: infuraUrl,
-    });
-
-    this.web3 = new Web3(provider);
+    this.web3 = new Web3(new Web3.providers.HttpProvider(infuraUrl));
     this.factoryContractAddress = process.env.FACTORY_CONTRACT_ADDRESS;
 
     if (!this.factoryContractAddress) {
@@ -41,8 +33,33 @@ export class TokenService {
         'Factory contract address is not defined in the environment variables.',
       );
     }
-  }
 
+    const fireblocksApiKey = process.env.FIREBLOCKS_API_KEY;
+    if (!fireblocksApiKey) {
+      throw new Error('FIREBLOCKS_API_KEY is required');
+    }
+
+    const fireblocksPrivatePath = process.env.FIREBLOCKS_API_SECRET_PATH;
+    if (!fireblocksPrivatePath) {
+      throw new Error('FIREBLOCKS_PRIVATE_KEY_PATH is required');
+    }
+
+    const fireblocksBaseUrl = process.env.FIREBLOCKS_BASE_URL;
+    if (!fireblocksBaseUrl) {
+      throw new Error('FIREBLOCKS_BASE_URL is required');
+    }
+
+    const fireblocksPrivateKey = fs.readFileSync(
+      fireblocksPrivatePath,
+      'utf-8',
+    );
+
+    this.fireblocks = new FireblocksSDK(
+      fireblocksPrivateKey,
+      fireblocksApiKey,
+      fireblocksBaseUrl,
+    );
+  }
   async createToken(dto: {
     name: string;
     symbol: string;
@@ -51,8 +68,11 @@ export class TokenService {
   }) {
     const { name, symbol, decimals, initialSupply } = dto;
 
-    const accounts = await this.web3.eth.getAccounts();
-    const ownerAddress = accounts[0];
+    const account = this.web3.eth.accounts.privateKeyToAccount(this.privateKey);
+    const ownerAddress = account.address;
+
+    this.web3.eth.accounts.wallet.add(account);
+    this.web3.eth.defaultAccount = ownerAddress;
 
     const factoryContract = new this.web3.eth.Contract(
       TokenFactoryABI.abi,
@@ -66,15 +86,15 @@ export class TokenService {
       initialSupply,
     );
 
-    const gasPrice = await this.web3.eth.getGasPrice();
     const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
+    const gasPrice = await this.web3.eth.getGasPrice();
 
     const txObject = {
       from: ownerAddress,
       to: this.factoryContractAddress,
       data: deployTx.encodeABI(),
-      gasPrice,
       nonce,
+      gasPrice: gasPrice.toString(),
     };
 
     const signedTx = await this.web3.eth.accounts.signTransaction(
@@ -86,42 +106,35 @@ export class TokenService {
       signedTx.rawTransaction,
     );
 
-    const formattedReceipt = this.formatReceipt(receipt);
+    console.log('Transaction receipt:', receipt);
 
-    const serializedReceipt = {
-      ...formattedReceipt,
-      gasUsed: formattedReceipt.gasUsed.toString(),
-      cumulativeGasUsed: formattedReceipt.cumulativeGasUsed.toString(),
-      blockNumber: formattedReceipt.blockNumber.toString(),
-    };
+    const tokenAddress = receipt.logs[0].address;
+    console.log('Token address:', tokenAddress);
 
     const token = await this.tokenRepository.create({
-      transactionHash: formattedReceipt.transactionHash,
-      type: EventType.DEPLOYTOKEN,
-      from: formattedReceipt.from,
-      to: formattedReceipt.to,
-      contractAddress: formattedReceipt.contractAddress,
+      contractAddress: tokenAddress,
+      name: name,
+      symbol: symbol,
+      decimals: decimals,
+      initialSupply: initialSupply,
     });
 
-    if (!token) {
-      throw new Error('Failed to create token record in the database.');
-    }
+    await this.registerAssetOnFireblocks(token.contractAddress, symbol);
 
-    return serializedReceipt;
+    return token.contractAddress;
   }
 
-  formatReceipt(receipt: any) {
-    return {
-      transactionHash: receipt.transactionHash,
-      blockHash: receipt.blockHash,
-      blockNumber: receipt.blockNumber,
-      contractAddress: receipt.contractAddress,
-      gasUsed: receipt.gasUsed,
-      cumulativeGasUsed: receipt.cumulativeGasUsed,
-      from: receipt.from,
-      to: receipt.to,
-      status: receipt.status,
-      events: receipt.events,
-    };
+  async registerAssetOnFireblocks(contractAddress: string, symbol: string) {
+    const blockchainId = 'ETH_TEST5';
+    try {
+      const registerAsset = await this.fireblocks.registerNewAsset(
+        blockchainId,
+        contractAddress,
+        symbol,
+      );
+      console.log('Registered asset on Fireblocks', registerAsset);
+    } catch (error) {
+      console.error('Error registering asset on Fireblocks', error);
+    }
   }
 }

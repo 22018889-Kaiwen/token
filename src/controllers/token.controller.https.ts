@@ -9,12 +9,12 @@ export class TokenController {
 
   @Post('deploy')
   async deployToken(@Body() dto: CreateTokenDto): Promise<BaseResponse> {
-    const receipt = await this.tokenService.createToken(dto);
+    const token = await this.tokenService.createToken(dto);
 
     return {
       success: true,
       message: 'Token deployed successfully',
-      data: receipt,
+      data: token,
     };
   }
 }
