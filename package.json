@@ -19,7 +19,7 @@
   "license": "UNLICENSED",
   "description": "",
   "dependencies": {
-    "@fireblocks/ts-sdk": "^2.0.0",
+    "@fireblocks/ts-sdk": "^2.1.0",
     "@nestjs/axios": "^3.0.2",
     "@nestjs/class-validator": "^0.13.4",
     "@nestjs/common": "^10.3.8",
@@ -33,6 +33,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "fireblocks-sdk": "^5.26.0",
+    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "nestjs-zod": "^3.0.0",
     "pg": "^8.11.5",
