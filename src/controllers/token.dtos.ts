@@ -23,3 +23,32 @@ export class CreateTokenDto {
   @Min(1)
   readonly initialSupply: number;
 }
+
+export class CreateNftCollectionDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly symbol: string;
+}
+
+export class MintNftDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly tokenAddress: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly to: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  readonly tokenURI: string;
+}
