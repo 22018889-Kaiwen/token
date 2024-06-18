@@ -19,6 +19,7 @@
   "license": "UNLICENSED",
   "description": "",
   "dependencies": {
+    "@fireblocks/fireblocks-web3-provider": "^1.3.6",
     "@fireblocks/ts-sdk": "^2.1.0",
     "@nestjs/axios": "^3.0.2",
     "@nestjs/class-validator": "^0.13.4",
