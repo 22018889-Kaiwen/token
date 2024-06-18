@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { BaseResponse } from 'src/base/base-response';
 import { CreateNftCollectionDto, CreateTokenDto, MintNftDto } from './token.dtos';
 import { TokenService } from 'src/services/ERC20/token.service';
@@ -41,6 +41,17 @@ export class TokenController {
       success: true,
       message: 'NFT minted successfully',
       data: nftAddress,
+    };
+  }
+
+  @Get('getBalance')
+  async getBalance(): Promise<BaseResponse> {
+    const balance = await this.nftService.getBalance();
+
+    return {
+      success: true,
+      message: 'Balance fetched successfully',
+      data: balance,
     };
   }
 }
