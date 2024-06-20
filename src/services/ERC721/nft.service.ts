@@ -1,14 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Web3 from 'web3';
 import * as NftFactoryAbi from 'src/NftFactory.json';
+import * as NftAbi from 'src/Nft.json';
 import { NFT_REPOSITORY, NftModel } from '../ERC721/nft.model';
 import * as dotenv from 'dotenv';
-import {
-  CollectionOwnership,
-  FireblocksSDK,
-  Token,
-  Web3PagedResponse,
-} from 'fireblocks-sdk';
+import { FireblocksSDK } from 'fireblocks-sdk';
 import { FireblocksWeb3Provider } from '@fireblocks/fireblocks-web3-provider';
 import * as fs from 'fs';
 
@@ -200,17 +196,11 @@ export class NftService {
   }
 
   async mintNft(dto: { tokenAddress: string; to: string; tokenURI: string }) {
+    const { tokenAddress, to, tokenURI } = dto;
+
     try {
-      const { tokenAddress, to, tokenURI } = dto;
-
-      this.logger.debug('Starting mintNft function...');
-      this.logger.debug('Token Address:', tokenAddress);
-      this.logger.debug('Recipient Address:', to);
-      this.logger.debug('Token URI:', tokenURI);
-
-      const vaultAccountId = '2'; // Your Fireblocks vault account ID
-      const assetId = 'ETH_TEST5'; // The asset ID you want to use
-
+      const vaultAccountId = '2'; // Fireblocks vault account ID
+      const assetId = 'ETH_TEST5'; // SEPOLIA
       const depositAddresses = await this.fireblocks.getDepositAddresses(
         vaultAccountId,
         assetId,
@@ -225,18 +215,11 @@ export class NftService {
       const ownerAddress = depositAddresses[0].address;
       this.logger.debug(`Owner Address: ${ownerAddress}`);
 
-      const contract = new this.web3.eth.Contract(
-        NftFactoryAbi.abi,
-        tokenAddress,
-      );
-      this.logger.debug('Initialized contract instance:', contract);
-
-      const mintTx = contract.methods.mintNFT(tokenAddress, to, tokenURI);
-      this.logger.debug('Created mintNFT transaction:', mintTx);
+      const nftContract = new this.web3.eth.Contract(NftAbi.abi, tokenAddress);
+      const mintTx = nftContract.methods.mintNFT(to, tokenURI);
 
       const nonce = await this.web3.eth.getTransactionCount(ownerAddress);
       const gasPrice = await this.web3.eth.getGasPrice();
-      const gasLimit = await mintTx.estimateGas({ from: ownerAddress });
 
       if (nonce === undefined || nonce === null) {
         throw new Error('Failed to fetch nonce.');
@@ -246,23 +229,15 @@ export class NftService {
         throw new Error('Failed to fetch gas price.');
       }
 
-      if (gasLimit === undefined || gasLimit === null) {
-        throw new Error('Failed to estimate gas limit.');
-      }
-
       this.logger.debug(`Nonce: ${nonce.toString()}`);
       this.logger.debug(`Gas Price: ${gasPrice.toString()}`);
-      this.logger.debug(`Gas Limit: ${gasLimit.toString()}`);
-
-      const estimatedGas = await mintTx.estimateGas({ from: ownerAddress });
 
       const txObject = {
         from: ownerAddress,
         to: tokenAddress,
         data: mintTx.encodeABI(),
         nonce: nonce.toString(), // Convert BigInt to string
-        gasPrice: gasPrice.toString(),
-        gas: estimatedGas.toString(),
+        gasPrice: gasPrice.toString(), // Convert BigInt to string
       };
 
       const customStringify = (obj: any) => {
@@ -273,30 +248,15 @@ export class NftService {
 
       this.logger.debug(`Transaction Object: ${customStringify(txObject)}`);
 
-      const signedTx = await this.web3.eth.accounts.signTransaction(
-        txObject,
-        this.privateKey,
-      );
-
-      this.logger.debug('Signed Transaction:', signedTx);
-
-      const receipt = await this.web3.eth.sendSignedTransaction(
-        signedTx.rawTransaction,
-      );
-
-      this.logger.debug('Transaction Receipt:', customStringify(receipt));
+      const receipt = await this.web3.eth.sendTransaction(txObject);
+      this.logger.debug(`Transaction receipt: ${customStringify(receipt)}`);
 
       await this.refreshNftOwnershipOnFireblocks();
 
       this.logger.debug('mintNft function completed successfully.');
-      return receipt;
+      return customStringify(receipt);
     } catch (error) {
-      // Enhanced error logging
-      this.logger.error('Error in mintNft function:', error.message);
-      this.logger.error('Token Address:', dto.tokenAddress);
-      this.logger.error('Recipient Address:', dto.to);
-      this.logger.error('Token URI:', dto.tokenURI);
-      this.logger.error('Error Stack:', error.stack); // Log the stack trace for detailed error information
+      this.logger.error('Error retrieving vault account assets:', error);
       throw error;
     }
   }
@@ -305,7 +265,6 @@ export class NftService {
     try {
       const vaultAccountId = '2'; // Your Fireblocks vault account ID
 
-      // Retrieve vault account details using Fireblocks SDK method
       const vaultAccount = await this.fireblocks.getVaultAccountById(
         vaultAccountId,
       );
@@ -321,7 +280,7 @@ export class NftService {
       // Fetch owned assets (tokens) from Fireblocks SDK
       const ownedAssetsResponse = await this.fireblocks.listOwnedAssets();
 
-      // Example of accessing data from responses
+      // Accessing data from responses
       console.log('Owned Collections (NFTs):', ownedCollectionsResponse.data);
       console.log('Owned Assets (Tokens):', ownedAssetsResponse.data);
 
