@@ -32,10 +32,6 @@ export class TokenModel extends BaseModel {
   })
   initialSupply: string;
 
-  @Column({
-    field: 'asset_id',
-  })
-  assetId: string;
 }
 
 export const TOKEN_REPOSITORY = Symbol.for('TOKENS_REPOSITORY');
