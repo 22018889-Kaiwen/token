@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Web3 from 'web3';
 import * as TokenFactoryABI from 'src/TokenFactory.json';
-import { TOKEN_REPOSITORY, TokenModel } from '../ERC20/token.model';
+import { TOKEN_REPOSITORY, TokenModel } from './token.model';
 import * as dotenv from 'dotenv';
 import { FireblocksSDK } from 'fireblocks-sdk';
 import * as fs from 'fs';

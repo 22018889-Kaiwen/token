@@ -31,7 +31,6 @@ export class TokenModel extends BaseModel {
     field: 'initial_supply',
   })
   initialSupply: string;
-
 }
 
 export const TOKEN_REPOSITORY = Symbol.for('TOKENS_REPOSITORY');
